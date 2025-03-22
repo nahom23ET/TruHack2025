@@ -1,0 +1,450 @@
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
+
+export interface Database {
+  public: {
+    Tables: {
+      profiles: {
+        Row: {
+          id: string
+          created_at: string
+          updated_at: string
+          username: string
+          full_name: string | null
+          avatar_url: string | null
+          level: number
+          points: number
+          streak: number
+          settings: Json | null
+        }
+        Insert: {
+          id: string
+          created_at?: string
+          updated_at?: string
+          username: string
+          full_name?: string | null
+          avatar_url?: string | null
+          level?: number
+          points?: number
+          streak?: number
+          settings?: Json | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          updated_at?: string
+          username?: string
+          full_name?: string | null
+          avatar_url?: string | null
+          level?: number
+          points?: number
+          streak?: number
+          settings?: Json | null
+        }
+      }
+      eco_actions: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string
+          action_type: string
+          category: string
+          points: number
+          description: string | null
+          impact: Json | null
+          location: Json | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id: string
+          action_type: string
+          category: string
+          points: number
+          description?: string | null
+          impact?: Json | null
+          location?: Json | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          user_id?: string
+          action_type?: string
+          category?: string
+          points?: number
+          description?: string | null
+          impact?: Json | null
+          location?: Json | null
+        }
+      }
+      challenges: {
+        Row: {
+          id: string
+          created_at: string
+          title: string
+          description: string
+          category: string
+          difficulty: string
+          points: number
+          start_date: string
+          end_date: string
+          target: number
+          unit: string
+          is_active: boolean
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          title: string
+          description: string
+          category: string
+          difficulty: string
+          points: number
+          start_date: string
+          end_date: string
+          target: number
+          unit: string
+          is_active?: boolean
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          title?: string
+          description?: string
+          category?: string
+          difficulty?: string
+          points?: number
+          start_date?: string
+          end_date?: string
+          target?: number
+          unit?: string
+          is_active?: boolean
+        }
+      }
+      user_challenges: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string
+          challenge_id: string
+          progress: number
+          completed: boolean
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id: string
+          challenge_id: string
+          progress?: number
+          completed?: boolean
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          user_id?: string
+          challenge_id?: string
+          progress?: number
+          completed?: boolean
+          completed_at?: string | null
+        }
+      }
+      achievements: {
+        Row: {
+          id: string
+          created_at: string
+          name: string
+          description: string
+          category: string
+          icon: string
+          target: number
+          rarity: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          name: string
+          description: string
+          category: string
+          icon: string
+          target: number
+          rarity: string
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          name?: string
+          description?: string
+          category?: string
+          icon?: string
+          target?: number
+          rarity?: string
+        }
+      }
+      user_achievements: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string
+          achievement_id: string
+          progress: number
+          unlocked: boolean
+          unlocked_at: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id: string
+          achievement_id: string
+          progress?: number
+          unlocked?: boolean
+          unlocked_at?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          user_id?: string
+          achievement_id?: string
+          progress?: number
+          unlocked?: boolean
+          unlocked_at?: string | null
+        }
+      }
+      quests: {
+        Row: {
+          id: string
+          created_at: string
+          title: string
+          description: string
+          reward_points: number
+          reward_badge: string | null
+          deadline: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          title: string
+          description: string
+          reward_points: number
+          reward_badge?: string | null
+          deadline?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          title?: string
+          description?: string
+          reward_points?: number
+          reward_badge?: string | null
+          deadline?: string | null
+        }
+      }
+      quest_steps: {
+        Row: {
+          id: string
+          created_at: string
+          quest_id: string
+          description: string
+          order: number
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          quest_id: string
+          description: string
+          order: number
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          quest_id?: string
+          description?: string
+          order?: number
+        }
+      }
+      user_quests: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string
+          quest_id: string
+          completed: boolean
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id: string
+          quest_id: string
+          completed?: boolean
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          user_id?: string
+          quest_id?: string
+          completed?: boolean
+          completed_at?: string | null
+        }
+      }
+      user_quest_steps: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string
+          quest_step_id: string
+          completed: boolean
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id: string
+          quest_step_id: string
+          completed?: boolean
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          user_id?: string
+          quest_step_id?: string
+          completed?: boolean
+          completed_at?: string | null
+        }
+      }
+      friends: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string
+          friend_id: string
+          status: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id: string
+          friend_id: string
+          status: string
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          user_id?: string
+          friend_id?: string
+          status?: string
+        }
+      }
+      posts: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string
+          content: string
+          image_url: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id: string
+          content: string
+          image_url?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          user_id?: string
+          content?: string
+          image_url?: string | null
+        }
+      }
+      post_likes: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string
+          post_id: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id: string
+          post_id: string
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          user_id?: string
+          post_id?: string
+        }
+      }
+      comments: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string
+          post_id: string
+          content: string
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id: string
+          post_id: string
+          content: string
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          user_id?: string
+          post_id?: string
+          content?: string
+        }
+      }
+      notifications: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string
+          title: string
+          message: string
+          type: string
+          read: boolean
+          action_url: string | null
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id: string
+          title: string
+          message: string
+          type: string
+          read?: boolean
+          action_url?: string | null
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          user_id?: string
+          title?: string
+          message?: string
+          type?: string
+          read?: boolean
+          action_url?: string | null
+        }
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+  }
+}
+
