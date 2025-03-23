@@ -4,8 +4,8 @@ import { createClient } from "@supabase/supabase-js"
 const isBrowser = typeof window !== "undefined"
 
 // Get environment variables with fallbacks for development
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://your-project-url.supabase.co"
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "your-anon-key"
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://heuiiiakorawvvhmwqyb.supabase.co"
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhldWlpaWFrb3Jhd3Z2aG13cXliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI2MTQ2NzksImV4cCI6MjA1ODE5MDY3OX0.2N59lI59vIArHblvsJdw3eT7QA-NxYKSOtJbDKI1t6Y"
 
 // Create a single supabase client for interacting with your database
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
