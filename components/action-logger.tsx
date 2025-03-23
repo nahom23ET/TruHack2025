@@ -180,7 +180,58 @@ export function ActionLogger({ onAction }: ActionLoggerProps) {
       } catch (err) {
         console.error("Error updating backend:", err)
       }
-  
+
+
+    // debug 
+
+    console.log("Payload to log-action:", {
+      user_id: userId,
+      name: actionData.name,
+      icon: actionData.icon,
+      points: actionData.points,
+      category: actionData.category,
+      description: actionData.description,
+      impact: actionData.impact,
+      carbon_saved: actionData.carbonSaved ?? 0,
+      water_saved: actionData.waterSaved ?? 0,
+      waste_saved: actionData.wasteSaved ?? 0,
+      energy_saved: actionData.energySaved ?? 0,
+      location: actionData.location ?? {},
+    })
+
+    
+    // ✅ Log action to backend with real values
+    try {
+      const res = await fetch("http://localhost:8000/log-action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          user_id: userId,
+          name: actionData.name,
+          points: actionData.points,
+          category: actionData.category,
+          description: actionData.description,
+          impact: actionData.impact,
+          carbon_saved: actionData.carbonSaved ?? 0,
+          water_saved: actionData.waterSaved ?? 0,
+          waste_saved: actionData.wasteSaved ?? 0,
+          energy_saved: actionData.energySaved ?? 0,
+        }),
+      })
+      
+
+      if (!res.ok) {
+        const errorData = await res.json()
+        console.error("Failed to log action:", errorData.detail || res.statusText)
+      } else {
+        const data = await res.json()
+        console.log("Successfully logged action:", data)
+      }
+    } catch (err) {
+      console.error("Error logging action:", err)
+    }
+
+
       // ✅ Local store update
       addAction(actionData)
   

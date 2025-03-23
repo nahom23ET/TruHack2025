@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Lightbulb, Sparkles } from "lucide-react"
 import { motion } from "framer-motion"
 import { cn } from "@/lib/utils"
+import { useEcoStore } from "@/lib/store"
 
 
 interface ChatMessage {
@@ -23,6 +24,7 @@ const [input, setInput] = useState("")
 const [messages, setMessages] = useState<
   { role: "user" | "assistant"; content: string }[]
 >([])
+const { user } = useEcoStore()
 
 const handleSend = async (e: React.FormEvent) => {
   e.preventDefault()
@@ -36,8 +38,12 @@ const handleSend = async (e: React.FormEvent) => {
     const res = await fetch("http://localhost:8000/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: input }),
+      body: JSON.stringify({
+        user_id: user.id,
+        message: input,
+      }),
     })
+    
 
     const data = await res.json()
     const aiMessage: ChatMessage = { role: "assistant", content: data.reply }
