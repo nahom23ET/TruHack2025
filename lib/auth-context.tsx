@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { supabase, isSupabaseAvailable, getTableSchema } from "./supabase-client"
 import { supabaseAdmin } from "./supabase-admin"
 import { useToast } from "@/components/ui/use-toast"
+import { useEcoStore } from "@/lib/store"
 
 interface User {
   id: string
@@ -20,6 +21,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, username: string) => Promise<void>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<void>
+  checkUsernameAvailable: (username: string) => Promise<boolean>
   usingFallback: boolean
 }
 
@@ -130,6 +132,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
+  // Check if username is available
+  const checkUsernameAvailable = async (username: string): Promise<boolean> => {
+    try {
+      // Check if Supabase is available
+      const supabaseAvailable = await isSupabaseAvailable()
+
+      if (supabaseAvailable) {
+        // Check if username exists in profiles table
+        const { data, error, count } = await supabase
+          .from("profiles")
+          .select("username", { count: "exact" })
+          .eq("username", username)
+          .limit(1)
+
+        if (error) {
+          console.error("Error checking username:", error)
+          return false // Assume username is taken if there's an error
+        }
+
+        // Username is available if no matching records found
+        return count === 0
+      } else {
+        // In fallback mode, just check localStorage for simplicity
+        const storedUsers = localStorage.getItem("ecohabit-users")
+        if (storedUsers) {
+          const users = JSON.parse(storedUsers)
+          return !users.some((user: any) => user.name === username)
+        }
+        return true // Assume username is available in fallback mode
+      }
+    } catch (error) {
+      console.error("Error checking username availability:", error)
+      return false // Assume username is taken if there's an error
+    }
+  }
+
   // Sign in function with fallback
   const signIn = async (email: string, password: string) => {
     setLoading(true)
@@ -161,6 +199,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
             // Also store in localStorage as fallback
             localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userObj))
+
+            // Load actions from Supabase
+            const ecoStore = useEcoStore.getState()
+            await ecoStore.loadActionsFromSupabase()
           } catch (profileError) {
             console.error("Error fetching user profile:", profileError)
           }
@@ -208,6 +250,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, username: string) => {
     setLoading(true)
     try {
+      // First check if username is available
+      const isUsernameAvailable = await checkUsernameAvailable(username)
+      if (!isUsernameAvailable) {
+        throw new Error("Username is already taken. Please choose a different username.")
+      }
+
       // Check if Supabase is available
       const supabaseAvailable = await isSupabaseAvailable()
 
@@ -227,50 +275,61 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (data.user) {
           try {
-            // Get the schema of the profiles table to ensure we're using the right columns
-            const profileColumns = await getTableSchema("profiles")
-            console.log("Profile table columns:", profileColumns)
+            // Check if profile already exists (it might be created by a database trigger)
+            const { data: existingProfile } = await supabase
+              .from("profiles")
+              .select("id")
+              .eq("id", data.user.id)
+              .single()
 
-            // Create a profile object based on available columns
-            const profileData: Record<string, any> = {
-              id: data.user.id,
-            }
+            // Only create profile if it doesn't exist
+            if (!existingProfile) {
+              // Get the schema of the profiles table to ensure we're using the right columns
+              const profileColumns = await getTableSchema("profiles")
+              console.log("Profile table columns:", profileColumns)
 
-            // Only add fields that exist in the schema
-            if (profileColumns.includes("username")) profileData.username = username
-            if (profileColumns.includes("email")) profileData.email = email
-            if (profileColumns.includes("level")) profileData.level = 1
-            if (profileColumns.includes("points")) profileData.points = 0
-            if (profileColumns.includes("streak")) profileData.streak = 0
-
-            // Add settings if the column exists
-            if (profileColumns.includes("settings")) {
-              profileData.settings = {
-                notifications: true,
-                darkMode: false,
-                reminderTime: "18:00",
-                shareProgress: true,
-                goalPoints: 500,
-                language: "en",
-                units: "metric",
+              // Create a profile object based on available columns
+              const profileData: Record<string, any> = {
+                id: data.user.id,
               }
-            }
 
-            console.log("Inserting profile data:", profileData)
+              // Only add fields that exist in the schema
+              if (profileColumns.includes("username")) profileData.username = username
+              if (profileColumns.includes("email")) profileData.email = email
+              if (profileColumns.includes("level")) profileData.level = 1
+              if (profileColumns.includes("points")) profileData.points = 0
+              if (profileColumns.includes("streak")) profileData.streak = 0
 
-            // Use the admin client to bypass RLS policies
-            const { error: profileError } = await supabaseAdmin.from("profiles").insert([profileData])
+              // Add settings if the column exists
+              if (profileColumns.includes("settings")) {
+                profileData.settings = {
+                  notifications: true,
+                  darkMode: false,
+                  reminderTime: "18:00",
+                  shareProgress: true,
+                  goalPoints: 500,
+                  language: "en",
+                  units: "metric",
+                }
+              }
 
-            if (profileError) {
-              console.error("Profile insertion error:", profileError)
-              throw new Error(`Error creating user profile: ${profileError.message}`)
+              console.log("Inserting profile data:", profileData)
+
+              // Use the admin client to bypass RLS policies
+              const { error: profileError } = await supabaseAdmin.from("profiles").insert([profileData])
+
+              if (profileError) {
+                console.error("Profile insertion error:", profileError)
+                // Don't throw error here, just log it and continue
+                // The profile might have been created by a trigger
+              }
             }
 
             // Set user immediately
             const userObj = {
               id: data.user.id,
               email: data.user.email || "",
-              name: username,
+              name: username, // Make sure we're using the provided username
             }
 
             setUser(userObj)
@@ -279,7 +338,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userObj))
           } catch (profileError: any) {
             console.error("Error creating user profile:", profileError)
-            throw new Error(`Error creating user profile: ${profileError.message}`)
+            // Don't throw error here, just log it and continue
+            // The user was created successfully, so we can still proceed
+
+            // Set user data anyway
+            const userObj = {
+              id: data.user.id,
+              email: data.user.email || "",
+              name: username,
+            }
+
+            setUser(userObj)
+            localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userObj))
           }
         }
       } else {
@@ -294,6 +364,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setUser(userObj)
         localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(userObj))
+
+        // Store users list for username checking in fallback mode
+        const storedUsers = localStorage.getItem("ecohabit-users") || "[]"
+        const users = JSON.parse(storedUsers)
+        users.push(userObj)
+        localStorage.setItem("ecohabit-users", JSON.stringify(users))
       }
 
       toast({
@@ -321,16 +397,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     setLoading(true)
     try {
+      // Try to sync data before signing out
       if (!usingFallback) {
+        try {
+          const ecoStore = useEcoStore.getState()
+          await ecoStore.syncWithSupabase()
+        } catch (syncError) {
+          console.error("Error syncing data before logout:", syncError)
+        }
+
         // Use Supabase auth
         const { error } = await supabase.auth.signOut()
         if (error) throw error
       }
 
-      // Always clear localStorage
+      // Clear localStorage
       localStorage.removeItem(USER_STORAGE_KEY)
+
+      // Clear user state
       setUser(null)
+
+      // Redirect to login page
       router.push("/login")
+
+      // Force a page reload to ensure clean state
+      setTimeout(() => {
+        window.location.href = "/login"
+      }, 100)
     } catch (error: any) {
       console.error("Error signing out:", error)
       toast({
@@ -385,6 +478,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signUp,
     signOut,
     resetPassword,
+    checkUsernameAvailable,
     usingFallback,
   }
 

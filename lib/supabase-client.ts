@@ -4,8 +4,8 @@ import { createClient } from "@supabase/supabase-js"
 const isBrowser = typeof window !== "undefined"
 
 // Get environment variables with fallbacks for development
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://heuiiiakorawvvhmwqyb.supabase.co"
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhldWlpaWFrb3Jhd3Z2aG13cXliIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI2MTQ2NzksImV4cCI6MjA1ODE5MDY3OX0.2N59lI59vIArHblvsJdw3eT7QA-NxYKSOtJbDKI1t6Y"
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://your-project-url.supabase.co"
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "your-anon-key"
 
 // Create a single supabase client for interacting with your database
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -21,6 +21,16 @@ export async function isSupabaseAvailable(): Promise<boolean> {
   if (!isBrowser) return false
 
   try {
+    // Check if we have valid Supabase credentials
+    if (
+      !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+      !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+      process.env.NEXT_PUBLIC_SUPABASE_URL === "https://your-project-url.supabase.co" ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === "your-anon-key"
+    ) {
+      return false
+    }
+
     // Try a simple request to check connectivity
     const { error } = await supabase.auth.getSession()
     return !error
@@ -49,5 +59,22 @@ export async function getTableSchema(tableName: string): Promise<string[]> {
     console.error(`Error getting schema for ${tableName}:`, error)
     return []
   }
+}
+
+// Function to sync user data with Supabase
+export async function syncUserData(userId: string, userData: any): Promise<boolean> {
+  try {
+    const { error } = await supabase.from("profiles").update(userData).eq("id", userId)
+
+    return !error
+  } catch (error) {
+    console.error("Error syncing user data:", error)
+    return false
+  }
+}
+
+// Function to check network connectivity
+export function isOnline(): boolean {
+  return isBrowser ? navigator.onLine : false
 }
 

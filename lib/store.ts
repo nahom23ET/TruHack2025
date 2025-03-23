@@ -1,6 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import { supabase } from "@/lib/supabase-client"
+import { supabase, isSupabaseAvailable } from "./supabase-client"
 
 export interface User {
   id: string
@@ -50,6 +50,7 @@ export interface EcoAction {
   carbonSaved?: number
   waterSaved?: number
   wasteSaved?: number
+  energySaved?: number
 }
 
 export interface Challenge {
@@ -163,13 +164,12 @@ interface EcoHabitState {
   isInitialized: boolean
   isLoading: boolean
   error: string | null
-
-
-  hydrateUserFromSupabase: () => Promise<void>
+  syncStatus: "idle" | "syncing" | "error" | "success"
+  lastSyncTime: string | null
 
   // User actions
   updateUser: (user: Partial<User>) => void
-  addAction: (action: Omit<EcoAction, "id" | "timestamp">) => void
+  addAction: (action: Omit<EcoAction, "id" | "timestamp">) => Promise<void>
   joinChallenge: (challengeId: string) => void
   updateChallengeProgress: (challengeId: string, progress: number) => void
   markNotificationAsRead: (notificationId: string) => void
@@ -177,6 +177,8 @@ interface EcoHabitState {
   toggleDarkMode: () => void
   updateSettings: (settings: Partial<UserSettings>) => void
   likePost: (postId: string) => void
+  syncWithSupabase: () => Promise<void>
+  loadActionsFromSupabase: () => Promise<boolean>
 }
 
 // Generate a unique ID
@@ -239,33 +241,20 @@ const createInitialState = (): Omit<
   | "toggleDarkMode"
   | "updateSettings"
   | "likePost"
+  | "syncWithSupabase"
+  | "loadActionsFromSupabase"
 > => {
   return {
     user: {
       id: "user-1",
-      name: "EcoUser111",
+      name: "EcoUser",
       email: "user@example.com",
       avatar: "/placeholder.svg?height=96&width=96",
-      level: 2,
-      points: 85,
-      streak: 5,
-      joinedDate: "2023-01-15T12:00:00Z",
-      badges: [
-        {
-          id: "badge-1",
-          name: "Early Adopter",
-          description: "Joined EcoHabit in its early days",
-          icon: "🌱",
-          earnedAt: "2023-01-15T12:00:00Z",
-        },
-        {
-          id: "badge-2",
-          name: "Streak Master",
-          description: "Maintained a 5-day streak",
-          icon: "🔥",
-          earnedAt: "2023-01-20T12:00:00Z",
-        },
-      ],
+      level: 1,
+      points: 0,
+      streak: 0,
+      joinedDate: new Date().toISOString(),
+      badges: [],
       settings: {
         notifications: true,
         darkMode: false,
@@ -276,300 +265,25 @@ const createInitialState = (): Omit<
         units: "metric",
       },
     },
-    actions: [
-      {
-        id: "action-1",
-        name: "Biked to class",
-        icon: "🚲",
-        points: 10,
-        category: "transportation",
-        description: "Used a bicycle instead of a car or public transport",
-        impact: "Reduces carbon emissions and promotes physical health",
-        timestamp: "2023-03-20T08:30:00Z",
-        carbonSaved: 2.5,
-      },
-      {
-        id: "action-2",
-        name: "Recycled plastic",
-        icon: "♻️",
-        points: 5,
-        category: "waste",
-        description: "Properly sorted and recycled plastic waste",
-        impact: "Reduces landfill waste and conserves resources",
-        timestamp: "2023-03-20T12:45:00Z",
-        wasteSaved: 0.5,
-      },
-      {
-        id: "action-3",
-        name: "Used reusable bottle",
-        icon: "💧",
-        points: 3,
-        category: "waste",
-        description: "Used a reusable water bottle instead of single-use plastic",
-        impact: "Reduces plastic waste and saves money",
-        timestamp: "2023-03-19T10:15:00Z",
-        wasteSaved: 0.2,
-        waterSaved: 1.5,
-      },
-    ],
-    challenges: [
-      {
-        id: "challenge-1",
-        title: "Zero Plastic Day",
-        description: "Use zero single-use plastic for 1 day",
-        category: "waste",
-        difficulty: "medium",
-        points: 50,
-        startDate: "2023-03-15T00:00:00Z",
-        endDate: "2023-03-22T23:59:59Z",
-        progress: 0,
-        target: 1,
-        unit: "day",
-        joined: false,
-        completed: false,
-        participants: 128,
-      },
-      {
-        id: "challenge-2",
-        title: "Water Saver",
-        description: "Reduce shower time by 2 minutes for a week",
-        category: "water",
-        difficulty: "easy",
-        points: 100,
-        startDate: "2023-03-10T00:00:00Z",
-        endDate: "2023-03-24T23:59:59Z",
-        progress: 3,
-        target: 7,
-        unit: "days",
-        joined: true,
-        completed: false,
-        participants: 85,
-      },
-      {
-        id: "challenge-3",
-        title: "Plant Power",
-        description: "Eat plant-based meals for 3 days",
-        category: "food",
-        difficulty: "medium",
-        points: 75,
-        startDate: "2023-03-12T00:00:00Z",
-        endDate: "2023-03-26T23:59:59Z",
-        progress: 2,
-        target: 3,
-        unit: "meals",
-        joined: true,
-        completed: false,
-        participants: 64,
-      },
-    ],
-    achievements: [
-      {
-        id: "achievement-1",
-        name: "First Steps",
-        description: "Log your first eco-action",
-        icon: "👣",
-        category: "general",
-        progress: 1,
-        target: 1,
-        unlocked: true,
-        unlockedAt: "2023-01-15T12:30:00Z",
-        rarity: "common",
-      },
-      {
-        id: "achievement-2",
-        name: "Waste Warrior",
-        description: "Recycle 10 times",
-        icon: "♻️",
-        category: "waste",
-        progress: 4,
-        target: 10,
-        unlocked: false,
-        rarity: "uncommon",
-      },
-      {
-        id: "achievement-3",
-        name: "Cycling Champion",
-        description: "Bike instead of driving 20 times",
-        icon: "🚲",
-        category: "transportation",
-        progress: 5,
-        target: 20,
-        unlocked: false,
-        rarity: "rare",
-      },
-    ],
-    quests: [
-      {
-        id: "quest-1",
-        title: "Eco Explorer",
-        description: "Complete your first set of eco-friendly actions",
-        steps: [
-          {
-            id: "step-1",
-            description: "Log a transportation action",
-            completed: true,
-          },
-          {
-            id: "step-2",
-            description: "Log a waste reduction action",
-            completed: true,
-          },
-          {
-            id: "step-3",
-            description: "Join a challenge",
-            completed: true,
-          },
-          {
-            id: "step-4",
-            description: "Maintain a 3-day streak",
-            completed: false,
-          },
-        ],
-        reward: {
-          points: 50,
-          badge: {
-            id: "badge-3",
-            name: "Eco Explorer",
-            description: "Completed the Eco Explorer quest",
-            icon: "🧭",
-            earnedAt: "",
-          },
-        },
-        completed: false,
-        progress: 75,
-      },
-      {
-        id: "quest-2",
-        title: "Water Guardian",
-        description: "Become a protector of water resources",
-        steps: [
-          {
-            id: "step-1",
-            description: "Use a reusable water bottle 5 times",
-            completed: false,
-          },
-          {
-            id: "step-2",
-            description: "Complete the Water Saver challenge",
-            completed: false,
-          },
-          {
-            id: "step-3",
-            description: "Save 10 liters of water",
-            completed: false,
-          },
-        ],
-        reward: {
-          points: 75,
-        },
-        deadline: "2023-04-01T23:59:59Z",
-        completed: false,
-        progress: 0,
-      },
-    ],
-    notifications: [
-      {
-        id: "notification-1",
-        title: "New Challenge Available",
-        message: "Zero Waste Week challenge is now available!",
-        type: "challenge",
-        read: false,
-        timestamp: "2023-03-20T09:00:00Z",
-        action: {
-          label: "View Challenge",
-          url: "/challenges",
-        },
-      },
-      {
-        id: "notification-2",
-        title: "Daily Reminder",
-        message: "Don't forget to log your eco-actions today!",
-        type: "reminder",
-        read: false,
-        timestamp: "2023-03-20T08:00:00Z",
-      },
-      {
-        id: "notification-3",
-        title: "Achievement Unlocked",
-        message: "You've earned the 'Consistent Recycler' badge!",
-        type: "achievement",
-        read: false,
-        timestamp: "2023-03-19T14:30:00Z",
-        action: {
-          label: "View Achievements",
-          url: "/achievements",
-        },
-      },
-    ],
-    friends: [
-      {
-        id: "friend-1",
-        name: "Alex",
-        avatar: "/placeholder.svg?height=40&width=40",
-        level: 4,
-        points: 920,
-        streak: 12,
-        lastActive: "2023-03-20T10:15:00Z",
-        status: "online",
-      },
-      {
-        id: "friend-2",
-        name: "Jamie",
-        avatar: "/placeholder.svg?height=40&width=40",
-        level: 3,
-        points: 880,
-        streak: 7,
-        lastActive: "2023-03-19T18:30:00Z",
-        status: "offline",
-      },
-      {
-        id: "friend-3",
-        name: "Taylor",
-        avatar: "/placeholder.svg?height=40&width=40",
-        level: 3,
-        points: 780,
-        streak: 4,
-        lastActive: "2023-03-20T09:45:00Z",
-        status: "online",
-      },
-    ],
-    communityPosts: [
-      {
-        id: "post-1",
-        userId: "user-2",
-        userName: "GreenThumb",
-        userAvatar: "/placeholder.svg?height=40&width=40",
-        content:
-          "Just planted my first vegetable garden! 🌱 Excited to grow my own food and reduce my carbon footprint.",
-        image: "/placeholder.svg?height=300&width=500",
-        likes: 24,
-        comments: 5,
-        timestamp: "2023-03-19T16:45:00Z",
-        liked: false,
-      },
-      {
-        id: "post-2",
-        userId: "user-3",
-        userName: "EarthSaver",
-        userAvatar: "/placeholder.svg?height=40&width=40",
-        content:
-          "Completed the Zero Waste challenge! It was tough but so rewarding. Here are some tips that helped me...",
-        likes: 18,
-        comments: 7,
-        timestamp: "2023-03-18T12:30:00Z",
-        liked: true,
-      },
-    ],
+    actions: [],
+    challenges: [],
+    achievements: [],
+    quests: [],
+    notifications: [],
+    friends: [],
+    communityPosts: [],
     impactStats: {
-      carbonSaved: 125.5,
-      waterSaved: 750.2,
-      wasteSaved: 45.8,
-      treesPlanted: 3,
-      energySaved: 85.3,
+      carbonSaved: 0,
+      waterSaved: 0,
+      wasteSaved: 0,
+      treesPlanted: 0,
+      energySaved: 0,
     },
     isInitialized: true,
     isLoading: false,
     error: null,
+    syncStatus: "idle",
+    lastSyncTime: null,
   }
 }
 
@@ -584,14 +298,16 @@ export const useEcoStore = create<EcoHabitState>()(
           user: { ...state.user, ...userData },
         })),
 
-      addAction: (actionData) =>
-        set((state) => {
-          const newAction: EcoAction = {
-            id: generateId(),
-            timestamp: getCurrentTimestamp(),
-            ...actionData,
-          }
+      addAction: async (actionData) => {
+        // Create the new action object
+        const newAction: EcoAction = {
+          id: generateId(),
+          timestamp: getCurrentTimestamp(),
+          ...actionData,
+        }
 
+        // Update local state first
+        set((state) => {
           const newActions = [newAction, ...state.actions]
           const newStreak = calculateStreak(newActions)
           const newPoints = state.user.points + actionData.points
@@ -603,6 +319,7 @@ export const useEcoStore = create<EcoHabitState>()(
           if (actionData.carbonSaved) newImpactStats.carbonSaved += actionData.carbonSaved
           if (actionData.waterSaved) newImpactStats.waterSaved += actionData.waterSaved
           if (actionData.wasteSaved) newImpactStats.wasteSaved += actionData.wasteSaved
+          if (actionData.energySaved) newImpactStats.energySaved += actionData.energySaved
 
           // Check achievements
           const updatedAchievements = state.achievements.map((achievement) => {
@@ -672,8 +389,300 @@ export const useEcoStore = create<EcoHabitState>()(
             achievements: updatedAchievements,
             impactStats: newImpactStats,
             notifications: [...achievementNotifications, ...levelUpNotification, ...state.notifications],
+            syncStatus: "syncing",
           }
-        }),
+        })
+
+        // Then try to sync with Supabase
+        try {
+          const supabaseAvailable = await isSupabaseAvailable()
+
+          if (supabaseAvailable) {
+            const { data: session } = await supabase.auth.getSession()
+
+            if (session && session.session) {
+              const userId = session.session.user.id
+
+              // Prepare the action data for Supabase
+              const supabaseAction = {
+                user_id: userId,
+                name: newAction.name,
+                icon: typeof newAction.icon === "function" ? newAction.icon.name : "Action", // Convert icon to string
+                points: newAction.points,
+                category: newAction.category,
+                description: newAction.description,
+                impact: newAction.impact,
+                timestamp: newAction.timestamp,
+                location: newAction.location ? JSON.stringify(newAction.location) : null,
+                carbon_saved: newAction.carbonSaved,
+                water_saved: newAction.waterSaved,
+                waste_saved: newAction.wasteSaved,
+                energy_saved: newAction.energySaved,
+              }
+
+              // Insert the action into Supabase
+              const { error } = await supabase.from("eco_actions").insert([supabaseAction])
+
+              if (error) {
+                console.error("Error saving action to Supabase:", error)
+                set({ syncStatus: "error", error: error.message })
+                return
+              }
+
+              // Update user profile in Supabase
+              const state = get()
+              const { error: profileError } = await supabase
+                .from("profiles")
+                .update({
+                  points: state.user.points,
+                  level: state.user.level,
+                  streak: state.user.streak,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", userId)
+
+              if (profileError) {
+                console.error("Error updating profile in Supabase:", profileError)
+                set({ syncStatus: "error", error: profileError.message })
+                return
+              }
+
+              set({
+                syncStatus: "success",
+                lastSyncTime: new Date().toISOString(),
+                error: null,
+              })
+            }
+          }
+        } catch (error) {
+          console.error("Error syncing with Supabase:", error)
+          set({
+            syncStatus: "error",
+            error: error instanceof Error ? error.message : "Unknown error syncing with Supabase",
+          })
+        }
+      },
+
+      syncWithSupabase: async () => {
+        set({ syncStatus: "syncing" })
+
+        try {
+          const supabaseAvailable = await isSupabaseAvailable()
+
+          if (!supabaseAvailable) {
+            set({ syncStatus: "error", error: "Supabase is not available" })
+            return
+          }
+
+          const { data: session } = await supabase.auth.getSession()
+
+          if (!session || !session.session) {
+            set({ syncStatus: "error", error: "No active session" })
+            return
+          }
+
+          const userId = session.session.user.id
+          const state = get()
+
+          // Sync user profile
+          const { error: profileError } = await supabase
+            .from("profiles")
+            .update({
+              points: state.user.points,
+              level: state.user.level,
+              streak: state.user.streak,
+              updated_at: new Date().toISOString(),
+              settings: state.user.settings,
+            })
+            .eq("id", userId)
+
+          if (profileError) {
+            console.error("Error updating profile in Supabase:", profileError)
+            set({ syncStatus: "error", error: profileError.message })
+            return
+          }
+
+          // Get actions from Supabase
+          const { data: supabaseActions, error: actionsError } = await supabase
+            .from("eco_actions")
+            .select("*")
+            .eq("user_id", userId)
+            .order("timestamp", { ascending: false })
+
+          if (actionsError) {
+            console.error("Error fetching actions from Supabase:", actionsError)
+            set({ syncStatus: "error", error: actionsError.message })
+            return
+          }
+
+          if (supabaseActions && supabaseActions.length > 0) {
+            // Transform Supabase actions to match our store format
+            const formattedActions = supabaseActions.map((action) => ({
+              id: action.id || generateId(),
+              name: action.name,
+              icon: action.icon,
+              points: action.points,
+              category: action.category,
+              description: action.description || "",
+              impact: action.impact || "",
+              timestamp: action.timestamp,
+              location: action.location ? JSON.parse(action.location) : undefined,
+              carbonSaved: action.carbon_saved,
+              waterSaved: action.water_saved,
+              wasteSaved: action.waste_saved,
+              energySaved: action.energy_saved,
+            }))
+
+            // Update the store with the fetched actions
+            set({ actions: formattedActions })
+
+            // Recalculate impact stats
+            const newImpactStats = {
+              carbonSaved: 0,
+              waterSaved: 0,
+              wasteSaved: 0,
+              treesPlanted: 0,
+              energySaved: 0,
+            }
+
+            formattedActions.forEach((action) => {
+              if (action.carbonSaved) newImpactStats.carbonSaved += action.carbonSaved
+              if (action.waterSaved) newImpactStats.waterSaved += action.waterSaved
+              if (action.wasteSaved) newImpactStats.wasteSaved += action.wasteSaved
+              if (action.energySaved) newImpactStats.energySaved += action.energySaved
+            })
+
+            set({ impactStats: newImpactStats })
+          }
+
+          // Sync local actions that don't exist in Supabase
+          const localOnlyActions = state.actions.filter(
+            (localAction) =>
+              !supabaseActions.some(
+                (supabaseAction) =>
+                  supabaseAction.id === localAction.id || supabaseAction.timestamp === localAction.timestamp,
+              ),
+          )
+
+          for (const action of localOnlyActions) {
+            const supabaseAction = {
+              user_id: userId,
+              name: action.name,
+              icon: typeof action.icon === "function" ? action.icon.name : "Action",
+              points: action.points,
+              category: action.category,
+              description: action.description,
+              impact: action.impact,
+              timestamp: action.timestamp,
+              location: action.location ? JSON.stringify(action.location) : null,
+              carbon_saved: action.carbonSaved,
+              water_saved: action.waterSaved,
+              waste_saved: action.wasteSaved,
+              energy_saved: action.energySaved,
+            }
+
+            const { error } = await supabase.from("eco_actions").insert([supabaseAction])
+
+            if (error) {
+              console.error("Error syncing action to Supabase:", error)
+              // Continue with other actions even if one fails
+            }
+          }
+
+          set({
+            syncStatus: "success",
+            lastSyncTime: new Date().toISOString(),
+            error: null,
+          })
+        } catch (error) {
+          console.error("Error syncing with Supabase:", error)
+          set({
+            syncStatus: "error",
+            error: error instanceof Error ? error.message : "Unknown error syncing with Supabase",
+          })
+        }
+      },
+
+      loadActionsFromSupabase: async () => {
+        try {
+          const supabaseAvailable = await isSupabaseAvailable()
+
+          if (!supabaseAvailable) {
+            return false
+          }
+
+          const { data: session } = await supabase.auth.getSession()
+
+          if (!session || !session.session) {
+            return false
+          }
+
+          const userId = session.session.user.id
+
+          // Get actions from Supabase
+          const { data: supabaseActions, error: actionsError } = await supabase
+            .from("eco_actions")
+            .select("*")
+            .eq("user_id", userId)
+            .order("timestamp", { ascending: false })
+
+          if (actionsError) {
+            console.error("Error fetching actions from Supabase:", actionsError)
+            return false
+          }
+
+          if (supabaseActions && supabaseActions.length > 0) {
+            // Transform Supabase actions to match our store format
+            const formattedActions = supabaseActions.map((action) => ({
+              id: action.id || generateId(),
+              name: action.name,
+              icon: action.icon,
+              points: action.points,
+              category: action.category,
+              description: action.description || "",
+              impact: action.impact || "",
+              timestamp: action.timestamp,
+              location: action.location ? JSON.parse(action.location) : undefined,
+              carbonSaved: action.carbon_saved,
+              waterSaved: action.water_saved,
+              wasteSaved: action.waste_saved,
+              energySaved: action.energy_saved,
+            }))
+
+            // Update the store with the fetched actions
+            set({ actions: formattedActions })
+
+            // Recalculate impact stats
+            const newImpactStats = {
+              carbonSaved: 0,
+              waterSaved: 0,
+              wasteSaved: 0,
+              treesPlanted: 0,
+              energySaved: 0,
+            }
+
+            formattedActions.forEach((action) => {
+              if (action.carbonSaved) newImpactStats.carbonSaved += action.carbonSaved
+              if (action.waterSaved) newImpactStats.waterSaved += action.waterSaved
+              if (action.wasteSaved) newImpactStats.wasteSaved += action.wasteSaved
+              if (action.energySaved) newImpactStats.energySaved += action.energySaved
+            })
+
+            set({
+              impactStats: newImpactStats,
+              syncStatus: "success",
+              lastSyncTime: new Date().toISOString(),
+            })
+
+            return true
+          }
+
+          return false
+        } catch (error) {
+          console.error("Error loading actions from Supabase:", error)
+          return false
+        }
+      },
 
       joinChallenge: (challengeId) =>
         set((state) => ({
@@ -770,83 +779,6 @@ export const useEcoStore = create<EcoHabitState>()(
               : post,
           ),
         })),
-        hydrateUserFromSupabase: async () => {
-          const { data: { user }, error: userError } = await supabase.auth.getUser()
-          if (userError || !user) {
-            console.error("Supabase user error:", userError)
-            return
-          }
-        
-          const { data: profile, error: profileError } = await supabase
-            .from("profiles")
-            .select("*")
-            .eq("id", user.id)
-            .single()
-        
-          if (profileError || !profile) {
-            console.error("Profile fetch error:", profileError)
-            return
-          }
-        
-          // Set user in Zustand store
-          get().updateUser({
-            id: user.id,
-            name: profile.username,
-            email: user.email ?? "",
-            avatar: "/placeholder.svg?height=96&width=96",
-            level: profile.level ?? 1,
-            points: profile.points ?? 0,
-            streak: profile.streak ?? 0,
-            joinedDate: profile.created_at ?? new Date().toISOString(),
-            badges: [],
-            settings: profile.settings ?? {
-              notifications: true,
-              darkMode: false,
-              reminderTime: "18:00",
-              shareProgress: true,
-              goalPoints: 500,
-              language: "en",
-              units: "metric",
-            },
-          })
-        },
-        hydrateUserFromSupabase: async () => {
-          try {
-            const { data: { user }, error: authError } = await supabase.auth.getUser()
-        
-            if (authError || !user) {
-              console.error("Supabase Auth error:", authError)
-              return
-            }
-        
-            const { data: profile, error: profileError } = await supabase
-              .from("profiles")
-              .select("username, points, level, streak, settings")
-              .eq("id", user.id)
-              .single()
-        
-            if (profileError) {
-              console.error("Error fetching profile:", profileError)
-              return
-            }
-        
-            // 🔄 Update the Zustand store
-            get().updateUser({
-              id: user.id,
-              name: profile.username,
-              points: profile.points,
-              level: profile.level || Math.floor(profile.points / 100) + 1,
-              streak: profile.streak,
-              settings: profile.settings,
-            })
-        
-            console.log("✅ Hydrated user from Supabase:", profile)
-          } catch (err) {
-            console.error("Unexpected error during hydration:", err)
-          }
-        }
-        
-        
     }),
     {
       name: "ecohabit-storage",
@@ -868,8 +800,6 @@ export const useEcoStore = create<EcoHabitState>()(
         },
       },
     },
-    
   ),
-  
 )
 
