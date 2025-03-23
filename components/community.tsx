@@ -1,5 +1,4 @@
 "use client"
-import { useEffect } from "react"
 
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,11 +12,26 @@ import { motion, AnimatePresence } from "framer-motion"
 import { useEcoStore } from "@/lib/store"
 import { cn } from "@/lib/utils"
 
+// Add an empty state component for the feed
+const EmptyFeedState = () => (
+  <div className="text-center py-8">
+    <MessageSquare className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-20" />
+    <p className="text-muted-foreground mb-2">No community posts yet.</p>
+    <p className="text-sm text-muted-foreground">Be the first to share your eco-friendly journey!</p>
+  </div>
+)
+
+// Add an empty state component for friends
+const EmptyFriendsState = () => (
+  <div className="text-center py-8">
+    <Users className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-20" />
+    <p className="text-muted-foreground mb-2">No friends yet.</p>
+    <p className="text-sm text-muted-foreground">Connect with other eco-warriors to see them here!</p>
+  </div>
+)
+
 export function Community() {
-  const { communityPosts, friends, user, likePost, hydrateUserFromSupabase } = useEcoStore()
-  useEffect(() => {
-    hydrateUserFromSupabase()
-  }, [])
+  const { communityPosts, friends, user, likePost } = useEcoStore()
   const [activeTab, setActiveTab] = useState<"feed" | "friends">("feed")
   const [newPostContent, setNewPostContent] = useState("")
 
@@ -113,62 +127,68 @@ export function Community() {
                   </CardContent>
                 </Card>
 
-                <div className="space-y-4">
-                  {communityPosts.map((post) => (
-                    <motion.div
-                      key={post.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <Card>
-                        <CardContent className="p-4">
-                          <div className="flex items-start gap-3">
-                            <Avatar>
-                              <AvatarImage src={post.userAvatar} alt={post.userName} />
-                              <AvatarFallback>{post.userName.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                              <div className="flex justify-between">
-                                <h3 className="font-medium">{post.userName}</h3>
-                                <span className="text-xs text-muted-foreground">{formatTimestamp(post.timestamp)}</span>
-                              </div>
-                              <p className="text-sm mt-1">{post.content}</p>
-                              {post.image && (
-                                <div className="mt-3 rounded-md overflow-hidden">
-                                  <img
-                                    src={post.image || "/placeholder.svg"}
-                                    alt="Post attachment"
-                                    className="w-full h-auto object-cover"
-                                  />
+                {communityPosts.length === 0 ? (
+                  <EmptyFeedState />
+                ) : (
+                  <div className="space-y-4">
+                    {communityPosts.map((post) => (
+                      <motion.div
+                        key={post.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <Card>
+                          <CardContent className="p-4">
+                            <div className="flex items-start gap-3">
+                              <Avatar>
+                                <AvatarImage src={post.userAvatar} alt={post.userName} />
+                                <AvatarFallback>{post.userName.charAt(0)}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex-1">
+                                <div className="flex justify-between">
+                                  <h3 className="font-medium">{post.userName}</h3>
+                                  <span className="text-xs text-muted-foreground">
+                                    {formatTimestamp(post.timestamp)}
+                                  </span>
                                 </div>
-                              )}
-                              <div className="flex items-center gap-4 mt-4">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className={cn("flex items-center gap-1 h-8", post.liked && "text-red-500")}
-                                  onClick={() => handleLikePost(post.id)}
-                                >
-                                  <Heart className="h-4 w-4" fill={post.liked ? "currentColor" : "none"} />
-                                  {post.likes}
-                                </Button>
-                                <Button variant="ghost" size="sm" className="flex items-center gap-1 h-8">
-                                  <MessageSquare className="h-4 w-4" />
-                                  {post.comments}
-                                </Button>
-                                <Button variant="ghost" size="sm" className="flex items-center gap-1 h-8">
-                                  <Share2 className="h-4 w-4" />
-                                  Share
-                                </Button>
+                                <p className="text-sm mt-1">{post.content}</p>
+                                {post.image && (
+                                  <div className="mt-3 rounded-md overflow-hidden">
+                                    <img
+                                      src={post.image || "/placeholder.svg"}
+                                      alt="Post attachment"
+                                      className="w-full h-auto object-cover"
+                                    />
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-4 mt-4">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className={cn("flex items-center gap-1 h-8", post.liked && "text-red-500")}
+                                    onClick={() => handleLikePost(post.id)}
+                                  >
+                                    <Heart className="h-4 w-4" fill={post.liked ? "currentColor" : "none"} />
+                                    {post.likes}
+                                  </Button>
+                                  <Button variant="ghost" size="sm" className="flex items-center gap-1 h-8">
+                                    <MessageSquare className="h-4 w-4" />
+                                    {post.comments}
+                                  </Button>
+                                  <Button variant="ghost" size="sm" className="flex items-center gap-1 h-8">
+                                    <Share2 className="h-4 w-4" />
+                                    Share
+                                  </Button>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </div>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
               </motion.div>
             ) : (
               <motion.div
@@ -179,62 +199,66 @@ export function Community() {
                 transition={{ duration: 0.3 }}
                 className="space-y-4"
               >
-                {friends.map((friend) => (
-                  <motion.div
-                    key={friend.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    <Card>
-                      <CardContent className="p-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="relative">
-                              <Avatar>
-                                <AvatarImage src={friend.avatar} alt={friend.name} />
-                                <AvatarFallback>{friend.name.charAt(0)}</AvatarFallback>
-                              </Avatar>
-                              <div
-                                className={cn(
-                                  "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white",
-                                  friend.status === "online" ? "bg-green-500" : "bg-gray-300",
-                                )}
-                              />
-                            </div>
-                            <div>
-                              <h3 className="font-medium">{friend.name}</h3>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                <span>Level {friend.level}</span>
-                                <span>•</span>
-                                <span>{friend.points} points</span>
-                                <span>•</span>
-                                <span>{friend.streak} day streak</span>
+                {friends.length === 0 ? (
+                  <EmptyFriendsState />
+                ) : (
+                  friends.map((friend) => (
+                    <motion.div
+                      key={friend.id}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <Card>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="relative">
+                                <Avatar>
+                                  <AvatarImage src={friend.avatar} alt={friend.name} />
+                                  <AvatarFallback>{friend.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <div
+                                  className={cn(
+                                    "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white",
+                                    friend.status === "online" ? "bg-green-500" : "bg-gray-300",
+                                  )}
+                                />
+                              </div>
+                              <div>
+                                <h3 className="font-medium">{friend.name}</h3>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  <span>Level {friend.level}</span>
+                                  <span>•</span>
+                                  <span>{friend.points} points</span>
+                                  <span>•</span>
+                                  <span>{friend.streak} day streak</span>
+                                </div>
                               </div>
                             </div>
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  friend.status === "online"
+                                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200"
+                                    : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
+                                )}
+                              >
+                                {friend.status === "online"
+                                  ? "Online"
+                                  : "Last seen " + formatTimestamp(friend.lastActive)}
+                              </Badge>
+                              <Button variant="outline" size="sm">
+                                View Profile
+                              </Button>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-2">
-                            <Badge
-                              variant="outline"
-                              className={cn(
-                                friend.status === "online"
-                                  ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-200"
-                                  : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-                              )}
-                            >
-                              {friend.status === "online"
-                                ? "Online"
-                                : "Last seen " + formatTimestamp(friend.lastActive)}
-                            </Badge>
-                            <Button variant="outline" size="sm">
-                              View Profile
-                            </Button>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  ))
+                )}
               </motion.div>
             )}
           </AnimatePresence>

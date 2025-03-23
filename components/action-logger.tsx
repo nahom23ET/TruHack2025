@@ -2,31 +2,44 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { addScore } from "@/utils/api" // or wherever you placed it
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { Bike, Recycle, Droplet, Utensils, LightbulbOff, ShoppingBag, Plus, Share2, MapPin } from "lucide-react"
+import {
+  Bike,
+  Recycle,
+  Droplet,
+  Utensils,
+  LightbulbOff,
+  ShoppingBag,
+  Plus,
+  Share2,
+  MapPin,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react"
 import { motion } from "framer-motion"
 import { useEcoStore } from "@/lib/store"
 import { useToast } from "@/components/ui/use-toast"
 import { cn } from "@/lib/utils"
 import { useGeoLocation } from "@/hooks/use-geolocation"
 import { Leaf } from "lucide-react"
+import { useAuth } from "@/lib/auth-context"
 
 interface ActionLoggerProps {
   onAction?: (action: string, points: number) => void
 }
 
 export function ActionLogger({ onAction }: ActionLoggerProps) {
-  const { user, updateUser, addAction } = useEcoStore()
-
+  const { addAction, syncStatus, error, syncWithSupabase } = useEcoStore()
   const { toast } = useToast()
+  const { user } = useAuth()
   const { location, isLoading: isLoadingLocation, error: locationError } = useGeoLocation()
   const [selectedAction, setSelectedAction] = useState<any | null>(null)
   const [activeTab, setActiveTab] = useState<"daily" | "custom">("daily")
   const [showLocationBadge, setShowLocationBadge] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
 
   const ecoActions = [
     {
@@ -141,65 +154,60 @@ export function ActionLogger({ onAction }: ActionLoggerProps) {
     setShowLocationBadge(!!location)
   }
 
-
   const confirmAction = async () => {
-    if (selectedAction) {
-      const actionData = {
-        ...selectedAction,
-        location:
-          showLocationBadge && location
-            ? {
-                latitude: location.latitude,
-                longitude: location.longitude,
-                name: location.name || "Unknown location",
-              }
-            : undefined,
-      }
-  
-      const userId = useEcoStore.getState().user.id
-  
-      // 🔥 Add backend API call
+    if (selectedAction && !isSubmitting) {
+      setIsSubmitting(true)
+
       try {
-        const res = await fetch("http://localhost:8000/add-score", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            user_id: userId,
-            points: selectedAction.points,
-          }),
-        })
-  
-        if (!res.ok) {
-          throw new Error("Failed to sync score with backend")
+        // Add location data if available
+        const actionData = {
+          ...selectedAction,
+          location:
+            showLocationBadge && location
+              ? {
+                  latitude: location.latitude,
+                  longitude: location.longitude,
+                  name: location.name || "Unknown location",
+                }
+              : undefined,
         }
-  
-        const result = await res.json()
-        console.log("Backend updated:", result)
+
+        // Add to store and sync with Supabase
+        await addAction(actionData)
+
+        // Call the onAction prop if provided (for backward compatibility)
+        if (onAction) {
+          onAction(selectedAction.name, selectedAction.points)
+        }
+
+        // Show toast based on sync status
+        if (syncStatus === "error") {
+          toast({
+            title: "Action Logged Locally",
+            description: `+${selectedAction.points} points for ${selectedAction.name}. We'll sync to the cloud when you're back online.`,
+            className: "bg-yellow-100 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-50",
+          })
+        } else {
+          toast({
+            title: "Action Logged!",
+            description: `+${selectedAction.points} points for ${selectedAction.name}`,
+            className: "bg-green-100 text-green-900 dark:bg-green-900 dark:text-green-50",
+          })
+        }
+
+        setSelectedAction(null)
       } catch (err) {
-        console.error("Error updating backend:", err)
+        console.error("Error logging action:", err)
+        toast({
+          title: "Error Logging Action",
+          description: "There was a problem saving your action. Please try again.",
+          variant: "destructive",
+        })
+      } finally {
+        setIsSubmitting(false)
       }
-  
-      // ✅ Local store update
-      addAction(actionData)
-  
-      if (onAction) {
-        onAction(selectedAction.name, selectedAction.points)
-      }
-  
-      toast({
-        title: "Action Logged!",
-        description: `+${selectedAction.points} points for ${selectedAction.name}`,
-        className: "bg-green-100 text-green-900 dark:bg-green-900 dark:text-green-50",
-      })
-  
-      setSelectedAction(null)
     }
   }
-  
-  
-  
 
   const shareAction = () => {
     if (selectedAction) {
@@ -217,14 +225,55 @@ export function ActionLogger({ onAction }: ActionLoggerProps) {
     }
   }
 
+  // Add a function to handle manual sync
+  const handleSync = async () => {
+    if (!user || isSyncing) return
+
+    setIsSyncing(true)
+    try {
+      await syncWithSupabase()
+      toast({
+        title: "Sync Complete",
+        description: "Your actions have been synced with the cloud",
+        className: "bg-green-100 text-green-900 dark:bg-green-900 dark:text-green-50",
+      })
+    } catch (err) {
+      console.error("Error syncing:", err)
+      toast({
+        title: "Sync Failed",
+        description: "There was a problem syncing your actions",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
+  // Update the CardHeader to include the sync button
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Daily Action Logger</CardTitle>
-        <CardDescription>Log your eco-friendly actions to earn points</CardDescription>
+        <div className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Daily Action Logger</CardTitle>
+            <CardDescription>Log your eco-friendly actions to earn points</CardDescription>
+          </div>
+          {user && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleSync}
+              disabled={isSyncing || syncStatus === "syncing"}
+              className="flex items-center gap-1"
+            >
+              <RefreshCw className={`h-4 w-4 ${isSyncing || syncStatus === "syncing" ? "animate-spin" : ""}`} />
+              {isSyncing || syncStatus === "syncing" ? "Syncing..." : "Sync"}
+            </Button>
+          )}
+        </div>
         <Tabs
           defaultValue="daily"
-          className="w-full"
+          className="w-full mt-4"
           onValueChange={(value) => setActiveTab(value as "daily" | "custom")}
         >
           <TabsList className="grid w-full grid-cols-2 mb-4">
@@ -234,6 +283,13 @@ export function ActionLogger({ onAction }: ActionLoggerProps) {
         </Tabs>
       </CardHeader>
       <CardContent>
+        {!user && (
+          <div className="mb-4 p-3 bg-yellow-50 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-200 rounded-md flex items-center gap-2">
+            <AlertCircle className="h-5 w-5" />
+            <p className="text-sm">Sign in to save your actions to the cloud</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {activeTab === "daily" ? (
             ecoActions.map((action) => (
@@ -356,7 +412,9 @@ export function ActionLogger({ onAction }: ActionLoggerProps) {
                     <Share2 className="h-4 w-4" />
                     Share
                   </Button>
-                  <Button onClick={confirmAction}>Log Action</Button>
+                  <Button onClick={confirmAction} disabled={isSubmitting}>
+                    {isSubmitting ? "Saving..." : "Log Action"}
+                  </Button>
                 </div>
               </>
             )}

@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
@@ -16,6 +16,8 @@ import { Separator } from "@/components/ui/separator"
 import { useToast } from "@/components/ui/use-toast"
 import { useAuth } from "@/lib/auth-context"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { AnimatedGradient } from "@/components/animated-gradient"
+import { DecorativeShapes } from "@/components/decorative-shapes"
 
 export function LoginForm() {
   const [email, setEmail] = useState("")
@@ -26,6 +28,15 @@ export function LoginForm() {
   const router = useRouter()
   const { toast } = useToast()
   const { signIn, usingFallback } = useAuth()
+
+  // Reset form state when component mounts
+  useEffect(() => {
+    setEmail("")
+    setPassword("")
+    setRememberMe(false)
+    setIsLoading(false)
+    setError(null)
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -82,17 +93,23 @@ export function LoginForm() {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
-      className="w-full max-w-md"
+      className="w-full max-w-md relative"
     >
+      <DecorativeShapes variant="circles" count={10} className="opacity-30" />
+
       <Card className="eco-card-premium overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 -mt-10 -mr-10 bg-green-500/20 rounded-full blur-2xl"></div>
         <div className="absolute bottom-0 left-0 w-32 h-32 -mb-10 -ml-10 bg-blue-500/20 rounded-full blur-2xl"></div>
 
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-2">
-            <div className="h-12 w-12 rounded-full eco-gradient-primary flex items-center justify-center shadow-lg">
+            <AnimatedGradient
+              className="h-12 w-12 rounded-full flex items-center justify-center shadow-lg"
+              colors={["#22c55e", "#16a34a", "#15803d"]}
+              interactive={true}
+            >
               <Leaf className="h-6 w-6 text-white eco-leaf" />
-            </div>
+            </AnimatedGradient>
           </div>
           <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
           <CardDescription>Enter your credentials to access your account</CardDescription>

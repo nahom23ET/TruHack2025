@@ -7,14 +7,10 @@ import { cn } from "@/lib/utils"
 
 interface PointsDisplayProps {
   points: number
+  level: number
 }
 
-export function PointsDisplay({ points }: PointsDisplayProps) {
-  const level = Math.floor(points / 100) + 1
-  const progress = points % 100
-  const progressPercent = (progress / 100) * 100
-  const pointsToNext = 100 - progress
-
+export function PointsDisplay({ points, level }: PointsDisplayProps) {
   const levelTitles = [
     "Eco Novice",
     "Eco Explorer",
@@ -24,8 +20,12 @@ export function PointsDisplay({ points }: PointsDisplayProps) {
     "Eco Master",
     "Eco Legend",
   ]
+
+  const nextLevelPoints = level * 100
+  const progress = ((points % 100) / 100) * 100
   const currentTitle = levelTitles[level - 1] || "Eco Legend"
 
+  // Calculate stars based on level
   const stars = Math.min(level, 5)
 
   return (
@@ -34,7 +34,7 @@ export function PointsDisplay({ points }: PointsDisplayProps) {
       <CardHeader className="pb-2 relative">
         <CardTitle className="flex items-center gap-2">
           <Award className="h-5 w-5 text-yellow-500" />
-          Level {level} – {currentTitle}
+          Level {level} - {currentTitle}
         </CardTitle>
         <CardDescription>Your eco-impact progress</CardDescription>
       </CardHeader>
@@ -61,12 +61,12 @@ export function PointsDisplay({ points }: PointsDisplayProps) {
               <motion.div
                 className="absolute inset-y-0 left-0 eco-gradient-primary rounded-full"
                 initial={{ width: 0 }}
-                animate={{ width: `${progressPercent}%` }}
+                animate={{ width: `${progress}%` }}
                 transition={{ duration: 1, ease: "easeOut" }}
               />
             </div>
             <div className="text-xs text-muted-foreground text-right">
-              {pointsToNext} points to next level
+              {Math.floor(nextLevelPoints - (points % 100))} points to next level
             </div>
           </div>
 
@@ -92,3 +92,4 @@ export function PointsDisplay({ points }: PointsDisplayProps) {
     </Card>
   )
 }
+

@@ -2,11 +2,11 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { Leaf, Mail, Lock, User, ArrowRight, AlertCircle, Check, Info } from "lucide-react"
+import { Leaf, Mail, Lock, User, ArrowRight, AlertCircle, Check, Info, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -26,9 +26,11 @@ export function SignupForm() {
   const [acceptTerms, setAcceptTerms] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isCheckingUsername, setIsCheckingUsername] = useState(false)
+  const [isUsernameAvailable, setIsUsernameAvailable] = useState<boolean | null>(null)
   const router = useRouter()
   const { toast } = useToast()
-  const { signUp, usingFallback } = useAuth()
+  const { signUp, usingFallback, checkUsernameAvailable } = useAuth()
 
   // Password strength indicators
   const hasMinLength = password.length >= 8
@@ -54,6 +56,31 @@ export function SignupForm() {
     return "bg-green-500"
   }
 
+  // Check username availability with debounce
+  useEffect(() => {
+    if (!username || username.length < 3) {
+      setIsUsernameAvailable(null)
+      return
+    }
+
+    const checkUsername = async () => {
+      setIsCheckingUsername(true)
+      try {
+        const isAvailable = await checkUsernameAvailable(username)
+        setIsUsernameAvailable(isAvailable)
+      } catch (error) {
+        console.error("Error checking username:", error)
+        setIsUsernameAvailable(null)
+      } finally {
+        setIsCheckingUsername(false)
+      }
+    }
+
+    // Debounce the check to avoid too many requests
+    const timer = setTimeout(checkUsername, 500)
+    return () => clearTimeout(timer)
+  }, [username, checkUsernameAvailable])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
@@ -78,6 +105,15 @@ export function SignupForm() {
     if (!/^[a-zA-Z0-9_]+$/.test(username)) {
       setError("Username can only contain letters, numbers, and underscores")
       return
+    }
+
+    // Check username availability one more time before submission
+    if (username.length >= 3) {
+      const isAvailable = await checkUsernameAvailable(username)
+      if (!isAvailable) {
+        setError("This username is already taken. Please choose a different one.")
+        return
+      }
     }
 
     setIsLoading(true)
@@ -223,18 +259,39 @@ export function SignupForm() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="username" className="flex items-center justify-between">
+                <span>Username</span>
+                {isCheckingUsername && (
+                  <span className="text-xs text-muted-foreground flex items-center">
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    Checking...
+                  </span>
+                )}
+                {!isCheckingUsername && isUsernameAvailable !== null && (
+                  <span className={`text-xs ${isUsernameAvailable ? "text-green-600" : "text-red-600"}`}>
+                    {isUsernameAvailable ? "Username available" : "Username taken"}
+                  </span>
+                )}
+              </Label>
               <div className="relative">
                 <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="username"
                   type="text"
                   placeholder="ecowarrior"
-                  className="pl-10"
+                  className={cn(
+                    "pl-10",
+                    isUsernameAvailable === false ? "border-red-500 focus-visible:ring-red-500" : "",
+                    isUsernameAvailable === true ? "border-green-500 focus-visible:ring-green-500" : "",
+                  )}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
                 />
+                {isUsernameAvailable === true && <Check className="absolute right-3 top-3 h-4 w-4 text-green-500" />}
+                {isUsernameAvailable === false && (
+                  <AlertCircle className="absolute right-3 top-3 h-4 w-4 text-red-500" />
+                )}
               </div>
               <p className="text-xs text-muted-foreground">Only letters, numbers, and underscores allowed</p>
             </div>
@@ -365,7 +422,11 @@ export function SignupForm() {
               </Label>
             </div>
 
-            <Button type="submit" className="w-full eco-button-primary" disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full eco-button-primary"
+              disabled={isLoading || isUsernameAvailable === false}
+            >
               {isLoading ? (
                 <motion.div
                   className="flex items-center gap-2"

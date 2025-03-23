@@ -16,42 +16,22 @@ interface ActionRecord {
   icon: string
 }
 
+// Add an empty state component
+const EmptyState = () => (
+  <div className="text-center py-8">
+    <History className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-20" />
+    <p className="text-muted-foreground mb-2">No action history yet.</p>
+    <p className="text-sm text-muted-foreground">Start logging eco-actions to see your history here!</p>
+  </div>
+)
+
 export function ActionHistory() {
   const [date, setDate] = useState<Date | undefined>(new Date())
   const [view, setView] = useState<"list" | "calendar">("list")
 
-  // Generate some mock action history data
+  // Replace the generateActionHistory function with one that returns an empty array
   const generateActionHistory = (): ActionRecord[] => {
-    const actions = [
-      { action: "Biked to class", points: 10, icon: "🚲" },
-      { action: "Recycled plastic", points: 5, icon: "♻️" },
-      { action: "Used reusable bottle", points: 3, icon: "💧" },
-      { action: "Plant-based meal", points: 8, icon: "🥗" },
-      { action: "Saved electricity", points: 4, icon: "💡" },
-      { action: "Reusable shopping bag", points: 3, icon: "🛍️" },
-    ]
-
-    const history: ActionRecord[] = []
-    const today = new Date()
-
-    // Generate actions for the past 30 days
-    for (let i = 0; i < 30; i++) {
-      const date = new Date()
-      date.setDate(today.getDate() - i)
-
-      // Add 0-3 actions per day
-      const actionsPerDay = Math.floor(Math.random() * 4)
-      for (let j = 0; j < actionsPerDay; j++) {
-        const randomAction = actions[Math.floor(Math.random() * actions.length)]
-        history.push({
-          id: history.length + 1,
-          ...randomAction,
-          date: new Date(date),
-        })
-      }
-    }
-
-    return history.sort((a, b) => b.date.getTime() - a.date.getTime())
+    return []
   }
 
   const actionHistory = generateActionHistory()
@@ -126,7 +106,9 @@ export function ActionHistory() {
       </CardHeader>
       <CardContent>
         <AnimatePresence mode="wait">
-          {view === "calendar" ? (
+          {actionHistory.length === 0 ? (
+            <EmptyState />
+          ) : view === "calendar" ? (
             <motion.div
               key="calendar"
               initial={{ opacity: 0 }}

@@ -5,7 +5,7 @@ import { ActionLogger } from "@/components/action-logger"
 import { PointsDisplay } from "@/components/points-display"
 import { StreakTracker } from "@/components/streak-tracker"
 import { AiTips } from "@/components/ai-tips"
-import { Challenges } from "@/components/challenges"
+import Challenges from "@/components/challenges"
 import { Avatar } from "@/components/avatar"
 import { useToast } from "@/components/ui/use-toast"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -17,15 +17,19 @@ import { motion } from "framer-motion"
 import { Leaf, Award, TrendingUp, Zap } from "lucide-react"
 import { DailyGoals } from "@/components/daily-goals"
 import { EcoTips } from "@/components/eco-tips"
+// Add useAuth to imports
+import { useAuth } from "@/lib/auth-context"
 
+// Update the Dashboard component to use the auth context
 export function Dashboard() {
-  const { user, actions, addAction, hydrateUserFromSupabase  } = useEcoStore()
-  useEffect(() => {
-    hydrateUserFromSupabase()
-  }, [])
+  const { user: storeUser, actions, addAction } = useEcoStore()
+  const { user: authUser } = useAuth()
   const [showNotifications, setShowNotifications] = useState(false)
   const { toast } = useToast()
   const isMobile = useMobile()
+
+  // Get username from auth context
+  const username = authUser?.name || storeUser.name
 
   const handleAction = (action: string, pointValue: number) => {
     // This is now handled by the store, but keeping for backward compatibility
@@ -78,9 +82,9 @@ export function Dashboard() {
 
           <TabsContent value="progress">
             <div className="space-y-4">
-              <PointsDisplay points={user.points} level={user.level} />
-              <StreakTracker streak={user.streak} />
-              <Avatar level={user.level} />
+              <PointsDisplay points={storeUser.points} level={storeUser.level} />
+              <StreakTracker streak={storeUser.streak} />
+              <Avatar level={storeUser.level} />
             </div>
           </TabsContent>
 
@@ -108,24 +112,25 @@ export function Dashboard() {
           <div className="h-12 w-12 rounded-full eco-gradient-primary flex items-center justify-center shadow-lg">
             <Leaf className="h-6 w-6 text-white eco-leaf" />
           </div>
+          {/* Update the welcome message to use the auth username */}
           <div>
             <h1 className="text-3xl font-bold">EcoHabit Dashboard</h1>
-            <p className="text-muted-foreground">Welcome back, {user.name}! Continue your eco-friendly journey.</p>
+            <p className="text-muted-foreground">Welcome back, {username}! Continue your eco-friendly journey.</p>
           </div>
         </div>
 
         <div className="flex items-center gap-3 bg-white/50 dark:bg-gray-900/50 backdrop-blur-sm p-2 rounded-lg border shadow-sm">
           <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-green-100 dark:bg-green-900/30">
             <Award className="h-4 w-4 text-green-600 dark:text-green-400" />
-            <span className="font-medium">Level {user.level}</span>
+            <span className="font-medium">Level {storeUser.level}</span>
           </div>
           <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-blue-100 dark:bg-blue-900/30">
             <TrendingUp className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-            <span className="font-medium">{user.points} points</span>
+            <span className="font-medium">{storeUser.points} points</span>
           </div>
           <div className="flex items-center gap-2 px-3 py-1 rounded-md bg-amber-100 dark:bg-amber-900/30">
             <Zap className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-            <span className="font-medium">{user.streak} day streak</span>
+            <span className="font-medium">{storeUser.streak} day streak</span>
           </div>
         </div>
       </motion.div>
@@ -150,11 +155,11 @@ export function Dashboard() {
           transition={{ duration: 0.5, delay: 0.2 }}
           className="space-y-6"
         >
-          <PointsDisplay points={user.points} level={user.level} />
-          <StreakTracker streak={user.streak} />
+          <PointsDisplay points={storeUser.points} level={storeUser.level} />
+          <StreakTracker streak={storeUser.streak} />
           <AiTips actions={actions.map((a) => a.name)} />
           <EcoTips />
-          <Avatar level={user.level} />
+          <Avatar level={storeUser.level} />
         </motion.div>
       </div>
     </div>

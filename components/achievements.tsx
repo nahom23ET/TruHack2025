@@ -12,7 +12,16 @@ import { useEcoStore } from "@/lib/store"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
-export function Achievements() {
+// Add an empty state component
+const EmptyState = () => (
+  <div className="text-center py-8">
+    <Award className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-20" />
+    <p className="text-muted-foreground mb-2">No achievements available yet.</p>
+    <p className="text-sm text-muted-foreground">Start your eco-friendly journey to unlock achievements!</p>
+  </div>
+)
+
+export default function Achievements() {
   const { achievements } = useEcoStore()
   const [filter, setFilter] = useState<"all" | "unlocked" | "locked">("all")
   const [selectedAchievement, setSelectedAchievement] = useState<string | null>(null)
@@ -67,35 +76,37 @@ export function Achievements() {
           </Tabs>
         </CardHeader>
         <CardContent>
-          <div className="space-y-6">
-            {categories.map((category) => {
-              const categoryAchievements = filteredAchievements.filter((a) => a.category === category)
-              if (categoryAchievements.length === 0) return null
+          {achievements.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <div className="space-y-6">
+              {categories.map((category) => {
+                const categoryAchievements = filteredAchievements.filter((a) => a.category === category)
+                if (categoryAchievements.length === 0) return null
 
-              return (
-                <div key={category} className="space-y-4">
-                  <h3 className="font-medium capitalize">{category}</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    <AnimatePresence>
-                      {categoryAchievements.map((achievement) => (
-                        <motion.div
-                          key={achievement.id}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -20 }}
-                          transition={{ duration: 0.3 }}
-                          className="cursor-pointer"
-                          onClick={() => setSelectedAchievement(achievement.id)}
-                        >
-                          <Card
-                            className={cn(
-                              "overflow-hidden transition-all hover:shadow-md",
-                              achievement.unlocked ? "border-green-200 dark:border-green-800" : "opacity-75",
-                            )}
+                return (
+                  <div key={category} className="space-y-4">
+                    <h3 className="font-medium capitalize">{category}</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      <AnimatePresence>
+                        {categoryAchievements.map((achievement) => (
+                          <motion.div
+                            key={achievement.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -20 }}
+                            transition={{ duration: 0.3 }}
+                            className="cursor-pointer"
+                            onClick={() => setSelectedAchievement(achievement.id)}
                           >
-                            <CardContent className="p-4">
-                              <div className="flex items-start justify-between">
-                                <div className="flex items-center gap-3">
+                            <Card
+                              className={cn(
+                                "overflow-hidden transition-all hover:shadow-md",
+                                achievement.unlocked ? "border-green-200 dark:border-green-800" : "opacity-75",
+                              )}
+                            >
+                              <CardContent className="p-4">
+                                <div className="flex items-start justify-between">
                                   <div className="flex items-center justify-center w-10 h-10 rounded-full bg-muted text-2xl">
                                     {achievement.unlocked ? (
                                       achievement.icon
@@ -120,15 +131,16 @@ export function Achievements() {
                                 <Progress value={(achievement.progress / achievement.target) * 100} className="h-2" />
                               </div>
                             </CardContent>
-                          </Card>
+                            </Card>
                         </motion.div>
                       ))}
                     </AnimatePresence>
                   </div>
                 </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          )}
         </CardContent>
       </Card>
 

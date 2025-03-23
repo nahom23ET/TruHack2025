@@ -14,6 +14,15 @@ import { motion, AnimatePresence } from "framer-motion"
 import { useEcoStore } from "@/lib/store"
 import { cn } from "@/lib/utils"
 
+// Add an empty state component
+const EmptyState = () => (
+  <div className="text-center py-8">
+    <MapPin className="h-10 w-10 text-muted-foreground mx-auto mb-2 opacity-20" />
+    <p className="text-muted-foreground mb-2">No quests available yet.</p>
+    <p className="text-sm text-muted-foreground">Check back soon for new eco-quests!</p>
+  </div>
+)
+
 export function Quests() {
   const { quests } = useEcoStore()
   const [filter, setFilter] = useState<"active" | "completed">("active")
@@ -64,18 +73,12 @@ export function Quests() {
           </Tabs>
         </CardHeader>
         <CardContent>
-          <div className="space-y-4">
-            <AnimatePresence>
-              {filteredQuests.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">
-                    {filter === "active"
-                      ? "No active quests available. Check back later!"
-                      : "You haven't completed any quests yet."}
-                  </p>
-                </div>
-              ) : (
-                filteredQuests.map((quest) => (
+          {filteredQuests.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <div className="space-y-4">
+              <AnimatePresence>
+                {filteredQuests.map((quest) => (
                   <motion.div
                     key={quest.id}
                     initial={{ opacity: 0, y: 20 }}
@@ -145,10 +148,10 @@ export function Quests() {
                       </CardContent>
                     </Card>
                   </motion.div>
-                ))
-              )}
-            </AnimatePresence>
-          </div>
+                ))}
+              </AnimatePresence>
+            </div>
+          )}
         </CardContent>
       </Card>
 
