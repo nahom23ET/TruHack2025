@@ -19,7 +19,10 @@ import { DailyGoals } from "@/components/daily-goals"
 import { EcoTips } from "@/components/eco-tips"
 
 export function Dashboard() {
-  const { user, actions, addAction } = useEcoStore()
+  const { user, actions, addAction, hydrateUserFromSupabase  } = useEcoStore()
+  useEffect(() => {
+    hydrateUserFromSupabase()
+  }, [])
   const [showNotifications, setShowNotifications] = useState(false)
   const { toast } = useToast()
   const isMobile = useMobile()

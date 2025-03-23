@@ -1,5 +1,6 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
+import { supabase } from "@/lib/supabase-client"
 
 export interface User {
   id: string
@@ -163,6 +164,9 @@ interface EcoHabitState {
   isLoading: boolean
   error: string | null
 
+
+  hydrateUserFromSupabase: () => Promise<void>
+
   // User actions
   updateUser: (user: Partial<User>) => void
   addAction: (action: Omit<EcoAction, "id" | "timestamp">) => void
@@ -239,7 +243,7 @@ const createInitialState = (): Omit<
   return {
     user: {
       id: "user-1",
-      name: "EcoUser",
+      name: "EcoUser111",
       email: "user@example.com",
       avatar: "/placeholder.svg?height=96&width=96",
       level: 2,
@@ -766,6 +770,48 @@ export const useEcoStore = create<EcoHabitState>()(
               : post,
           ),
         })),
+        hydrateUserFromSupabase: async () => {
+          const { data: { user }, error: userError } = await supabase.auth.getUser()
+          if (userError || !user) {
+            console.error("Supabase user error:", userError)
+            return
+          }
+        
+          const { data: profile, error: profileError } = await supabase
+            .from("profiles")
+            .select("*")
+            .eq("id", user.id)
+            .single()
+        
+          if (profileError || !profile) {
+            console.error("Profile fetch error:", profileError)
+            return
+          }
+        
+          // Set user in Zustand store
+          get().updateUser({
+            id: user.id,
+            name: profile.username,
+            email: user.email ?? "",
+            avatar: "/placeholder.svg?height=96&width=96",
+            level: profile.level ?? 1,
+            points: profile.points ?? 0,
+            streak: profile.streak ?? 0,
+            joinedDate: profile.created_at ?? new Date().toISOString(),
+            badges: [],
+            settings: profile.settings ?? {
+              notifications: true,
+              darkMode: false,
+              reminderTime: "18:00",
+              shareProgress: true,
+              goalPoints: 500,
+              language: "en",
+              units: "metric",
+            },
+          })
+        },
+        
+        
     }),
     {
       name: "ecohabit-storage",
@@ -788,5 +834,6 @@ export const useEcoStore = create<EcoHabitState>()(
       },
     },
   ),
+  
 )
 

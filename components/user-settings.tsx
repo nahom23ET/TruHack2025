@@ -1,6 +1,9 @@
 "use client"
 
 import { useState } from "react"
+import { useEffect } from "react"
+
+import { supabase } from "@/lib/supabase-client"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
@@ -11,9 +14,10 @@ import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { useToast } from "@/components/ui/use-toast"
 import { Settings, User, Bell, Moon, Share2 } from "lucide-react"
+const [streak, setStreak] = useState(0)
 
 export function UserSettings() {
-  const [username, setUsername] = useState("EcoUser")
+  const [username, setUsername] = useState("EcoUser323")
   const [email, setEmail] = useState("user@example.com")
   const [darkMode, setDarkMode] = useState(false)
   const [notifications, setNotifications] = useState(true)
@@ -21,6 +25,44 @@ export function UserSettings() {
   const [shareProgress, setShareProgress] = useState(true)
   const [goalPoints, setGoalPoints] = useState([500])
   const { toast } = useToast()
+
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
+  
+      if (userError || !user) {
+        console.error("Failed to get user:", userError)
+        return
+      }
+  
+      const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select("username, streak, settings")
+        .eq("id", user.id)
+        .single()
+  
+      if (profileError) {
+        console.error("Error fetching profile:", profileError)
+        return
+      }
+  
+      setUsername(profile.username || "EcoUser95")
+      setStreak(profile.streak ?? 0)
+  
+      const settings = profile.settings || {}
+      setDarkMode(settings.darkMode ?? false)
+      setNotifications(settings.notifications ?? true)
+      setReminderTime(settings.reminderTime ?? "18:00")
+      setShareProgress(settings.shareProgress ?? true)
+      setGoalPoints([settings.goalPoints ?? 500])
+    }
+  
+    fetchUserProfile()
+  }, [])
+  
 
   const toggleDarkMode = () => {
     const newDarkMode = !darkMode
@@ -39,12 +81,41 @@ export function UserSettings() {
     })
   }
 
-  const saveSettings = () => {
+  const saveSettings = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+  
+    const updatedSettings = {
+      darkMode,
+      notifications,
+      reminderTime,
+      shareProgress,
+      goalPoints: goalPoints[0],
+      language: "en",
+      units: "metric",
+    }
+  
+    const { error } = await supabase
+      .from("profiles")
+      .update({ settings: updatedSettings })
+      .eq("id", user?.id)
+  
+    if (error) {
+      toast({
+        title: "Error saving settings",
+        description: error.message,
+        variant: "destructive",
+      })
+      return
+    }
+  
     toast({
       title: "Settings saved",
       description: "Your preferences have been updated successfully.",
     })
   }
+  
 
   return (
     <Card>

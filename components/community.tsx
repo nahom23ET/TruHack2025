@@ -1,4 +1,5 @@
 "use client"
+import { useEffect } from "react"
 
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,7 +14,10 @@ import { useEcoStore } from "@/lib/store"
 import { cn } from "@/lib/utils"
 
 export function Community() {
-  const { communityPosts, friends, user, likePost } = useEcoStore()
+  const { communityPosts, friends, user, likePost, hydrateUserFromSupabase } = useEcoStore()
+  useEffect(() => {
+    hydrateUserFromSupabase()
+  }, [])
   const [activeTab, setActiveTab] = useState<"feed" | "friends">("feed")
   const [newPostContent, setNewPostContent] = useState("")
 
