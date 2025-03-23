@@ -17,10 +17,20 @@ export default function DashboardLayout({
   const router = useRouter()
   const { toggleDarkMode } = useEcoStore()
 
-  // Check if user is authenticated
+  // Check if user is authenticated and load actions
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login")
+    if (!loading) {
+      if (!user) {
+        router.push("/login")
+      } else {
+        // User is authenticated, load actions from Supabase
+        const loadActions = async () => {
+          const { loadActionsFromSupabase } = useEcoStore.getState()
+          await loadActionsFromSupabase()
+        }
+
+        loadActions()
+      }
     }
   }, [user, loading, router])
 

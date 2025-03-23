@@ -1,4 +1,4 @@
-import { Achievements } from "@/components/achievements"
+import Achievements from "@/components/achievements"
 
 export default function AchievementsPage() {
   return (
