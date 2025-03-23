@@ -788,7 +788,26 @@ export const useEcoStore = create<EcoHabitState>()(
             return
           }
         
-          // Set user in Zustand store
+          // ✅ Fetch user's eco actions
+          const { data: actions, error: actionsError } = await supabase
+            .from("eco_actions")
+            .select("*")
+            .eq("user_id", user.id)
+        
+          if (actionsError || !actions) {
+            console.error("Eco actions fetch error:", actionsError)
+            return
+          }
+        
+          // ✅ Calculate real impact
+          const impactStats = {
+            carbonSaved: actions.reduce((sum, a) => sum + (a.carbon_saved || 0), 0),
+            waterSaved: actions.reduce((sum, a) => sum + (a.water_saved || 0), 0),
+            wasteSaved: actions.reduce((sum, a) => sum + (a.waste_saved || 0), 0),
+            energySaved: actions.reduce((sum, a) => sum + (a.energy_saved || 0), 0),
+            treesPlanted: Math.floor(actions.reduce((sum, a) => sum + (a.carbon_saved || 0), 0) / 100),
+          }
+        
           get().updateUser({
             id: user.id,
             name: profile.username,
@@ -809,42 +828,10 @@ export const useEcoStore = create<EcoHabitState>()(
               units: "metric",
             },
           })
+        
+          set({ actions, impactStats })
         },
-        hydrateUserFromSupabase: async () => {
-          try {
-            const { data: { user }, error: authError } = await supabase.auth.getUser()
         
-            if (authError || !user) {
-              console.error("Supabase Auth error:", authError)
-              return
-            }
-        
-            const { data: profile, error: profileError } = await supabase
-              .from("profiles")
-              .select("username, points, level, streak, settings")
-              .eq("id", user.id)
-              .single()
-        
-            if (profileError) {
-              console.error("Error fetching profile:", profileError)
-              return
-            }
-        
-            // 🔄 Update the Zustand store
-            get().updateUser({
-              id: user.id,
-              name: profile.username,
-              points: profile.points,
-              level: profile.level || Math.floor(profile.points / 100) + 1,
-              streak: profile.streak,
-              settings: profile.settings,
-            })
-        
-            console.log("✅ Hydrated user from Supabase:", profile)
-          } catch (err) {
-            console.error("Unexpected error during hydration:", err)
-          }
-        }
         
         
     }),
