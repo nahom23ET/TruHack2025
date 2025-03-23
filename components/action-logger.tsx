@@ -160,7 +160,7 @@ export function ActionLogger({ onAction }: ActionLoggerProps) {
   
       // 🔥 Add backend API call
       try {
-        const res = await fetch("http://localhost:8000/add-score", {
+        const res = await fetch("https://truhackbackend.onrender.com/add-score", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -202,7 +202,7 @@ export function ActionLogger({ onAction }: ActionLoggerProps) {
     
     // ✅ Log action to backend with real values
     try {
-      const res = await fetch("http://localhost:8000/log-action", {
+      const res = await fetch("https://truhackbackend.onrender.com/log-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -1,5 +1,5 @@
 export async function addScore(userId: string, points: number) {
-    const res = await fetch("http://localhost:8000/add-score", {
+    const res = await fetch("https://truhackbackend.onrender.com/add-score", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
