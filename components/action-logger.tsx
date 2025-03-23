@@ -2,6 +2,8 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { addScore } from "@/utils/api" // or wherever you placed it
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -18,7 +20,8 @@ interface ActionLoggerProps {
 }
 
 export function ActionLogger({ onAction }: ActionLoggerProps) {
-  const { addAction } = useEcoStore()
+  const { user, updateUser, addAction } = useEcoStore()
+
   const { toast } = useToast()
   const { location, isLoading: isLoadingLocation, error: locationError } = useGeoLocation()
   const [selectedAction, setSelectedAction] = useState<any | null>(null)
@@ -138,9 +141,9 @@ export function ActionLogger({ onAction }: ActionLoggerProps) {
     setShowLocationBadge(!!location)
   }
 
-  const confirmAction = () => {
+
+  const confirmAction = async () => {
     if (selectedAction) {
-      // Add location data if available
       const actionData = {
         ...selectedAction,
         location:
@@ -152,25 +155,51 @@ export function ActionLogger({ onAction }: ActionLoggerProps) {
               }
             : undefined,
       }
-
-      // Add to store
+  
+      const userId = useEcoStore.getState().user.id
+  
+      // 🔥 Add backend API call
+      try {
+        const res = await fetch("http://localhost:8000/add-score", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            user_id: userId,
+            points: selectedAction.points,
+          }),
+        })
+  
+        if (!res.ok) {
+          throw new Error("Failed to sync score with backend")
+        }
+  
+        const result = await res.json()
+        console.log("Backend updated:", result)
+      } catch (err) {
+        console.error("Error updating backend:", err)
+      }
+  
+      // ✅ Local store update
       addAction(actionData)
-
-      // Call the onAction prop if provided (for backward compatibility)
+  
       if (onAction) {
         onAction(selectedAction.name, selectedAction.points)
       }
-
-      // Show toast
+  
       toast({
         title: "Action Logged!",
         description: `+${selectedAction.points} points for ${selectedAction.name}`,
         className: "bg-green-100 text-green-900 dark:bg-green-900 dark:text-green-50",
       })
-
+  
       setSelectedAction(null)
     }
   }
+  
+  
+  
 
   const shareAction = () => {
     if (selectedAction) {

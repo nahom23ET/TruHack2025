@@ -810,6 +810,41 @@ export const useEcoStore = create<EcoHabitState>()(
             },
           })
         },
+        hydrateUserFromSupabase: async () => {
+          try {
+            const { data: { user }, error: authError } = await supabase.auth.getUser()
+        
+            if (authError || !user) {
+              console.error("Supabase Auth error:", authError)
+              return
+            }
+        
+            const { data: profile, error: profileError } = await supabase
+              .from("profiles")
+              .select("username, points, level, streak, settings")
+              .eq("id", user.id)
+              .single()
+        
+            if (profileError) {
+              console.error("Error fetching profile:", profileError)
+              return
+            }
+        
+            // 🔄 Update the Zustand store
+            get().updateUser({
+              id: user.id,
+              name: profile.username,
+              points: profile.points,
+              level: profile.level || Math.floor(profile.points / 100) + 1,
+              streak: profile.streak,
+              settings: profile.settings,
+            })
+        
+            console.log("✅ Hydrated user from Supabase:", profile)
+          } catch (err) {
+            console.error("Unexpected error during hydration:", err)
+          }
+        }
         
         
     }),
@@ -833,6 +868,7 @@ export const useEcoStore = create<EcoHabitState>()(
         },
       },
     },
+    
   ),
   
 )
