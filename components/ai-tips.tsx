@@ -169,7 +169,20 @@ const handleSend = async (e: React.FormEvent) => {
               msg.role === "user" ? "bg-blue-100 dark:bg-blue-900" : "bg-gray-100 dark:bg-gray-800"
             )}
           >
-            <strong>{msg.role === "user" ? "You" : "AI"}:</strong> {msg.content}
+            <div
+  className={cn(
+    "text-sm p-2 rounded-md",
+    msg.role === "user" ? "bg-blue-100 dark:bg-blue-900" : "bg-gray-100 dark:bg-gray-800"
+  )}
+>
+  <strong>{msg.role === "user" ? "You" : "AI"}:</strong>{" "}
+  <span
+    dangerouslySetInnerHTML={{
+      __html: msg.content.replace(/\n/g, "<br />"),
+    }}
+  />
+</div>
+
           </div>
         ))}
       </div>
